@@ -40,7 +40,7 @@ class player:
         self.bpy = 0
         self.px = 0
         self.py = 0
-        self.delcard = 0 #出牌后需要将相应的牌删除
+        self.delcard = 0 #出牌后需要将对应的牌删除
         self.playcardnumber = 0
 
     def initial(self, w, numberlist, beginpointx, 
@@ -53,21 +53,89 @@ class player:
         self.interval = 20
         self.delcard = poker(w,[1])
         for i in range( 0,len(self.numberlist) ):
-            self.cardlist.append(poker( w, self.numberlist[i] ) )
+            self.cardlist.append(poker( w, self.numberlist[i] ))
 
 
     def move_(self):#把牌移动到显示区域
         for i in range(0,len(self.cardlist)):
             self.cardlist[i].cardMove(self.bpx + self.interval*i , self.bpy)
 
-    def play(self, number): #出牌，返回值为当前出牌的编号
+    def play(self, number): #出牌，返回值为当前出牌的编号，number是牌在cardlist中的序号
         self.cardlist[number].cardMove(self.px, self.py)
         self.delcard = self.cardlist.pop(number)
         self.move_()
         return self.numberlist.pop(number)
 
     def delete(self):
-        self.delcard.delete() 
+        self.delcard.delete() #将已经打出的牌删除，避免重叠
+
+
+class AIplayer:
+    def __init__(self):
+        self.cardlist = []#记录玩家要展示的所有牌
+        self.numberlist = []#记录玩家所拥有的所有牌的编号
+        self.bpx = 0
+        self.bpy = 0
+        self.px = 0
+        self.py = 0
+        self.delcard = 0 #出牌后需要将对应的牌删除
+        self.playcardnumber = 0
+        self.facecards = 0 #此变量记录是否要明牌
+        self.AInumber = 0
+
+    def initial(self, w, numberlist, beginpointx, 
+    beginpointy, playpointx,playpointy, AInumber):
+        self.numberlist = numberlist
+        self.bpx = beginpointx
+        self.bpy = beginpointy
+        self.px = playpointx
+        self.py = playpointy
+        self.interval = 20
+        self.delcard = poker(w,[1])
+        self.AInumber = AInumber
+        for i in range( 0,len(self.numberlist) ):#AI的牌首先都只对玩家展示背面
+            self.cardlist.append(poker( w, 52 ))
+
+
+    def moveHorizontal(self):#把牌移动到显示区域, 水平摆放
+        for i in range(0,len(self.cardlist)):
+            self.cardlist[i].cardMove(self.bpx + self.interval*i , self.bpy)
+
+    def moveVertical(self):#把牌移动到显示区域，竖直摆放
+        for i in range(0,len(self.cardlist)):
+            self.cardlist[i].cardMove(self.bpx , self.bpy + self.interval*i)        
+
+    def play(self, w, number): #出牌，返回值为当前出牌的编号，AIplayer的number与player的number不同，为牌的编号
+        p = self.numberlist.index(number) #先找到该牌的序号
+        self.cardlist[p] = poker(w,number) #重新赋值为要显示的牌
+        self.cardlist[p].cardMove(self.px, self.py)#将这张牌移动到出牌区
+        self.delcard = self.cardlist.pop(p)
+        self.numberlist.pop(p)
+        if self.AInumber == 1 or self.AInumber ==3:
+            self.moveVertical()
+        elif self.AInumber == 2:
+            self.moveHorizontal()
+        return number
+
+    def delete(self):
+        self.delcard.delete() #将已经打出的牌删除，避免重叠 出牌之前需要先调用此函数
+    
+    def faceCards(self, w): #如果需要明牌，调用此函数
+        for i in range( 0,len(self.numberlist) ):
+            Temp = self.cardlist.pop()
+            Temp.delete() 
+        for i in range( 0,len(self.numberlist) ):#将扑克牌全部替换为正常模式
+            self.cardlist.append(poker( w, self.numberlist[i] ))
+        
+        if self.AInumber == 1 or self.AInumber ==3:
+            self.moveVertical()
+        elif self.AInumber == 2:
+            self.moveHorizontal()
+
+
+    
+
+
 #######################################
 
 class welcomePage(QMainWindow):
@@ -116,16 +184,53 @@ class TimeBridgeGUI(QWidget):
         grid.addWidget(self.label, 0, 0, Qt.AlignTop)
         self.setLayout(grid)
 
+        ##############################################
         #player
-        self.player = player()
-
+        self.player = []
+        self.player.append(player()) #界面中玩家采用顺时针的顺序显示
+        self.player.append(AIplayer())
+        self.player.append(AIplayer())
+        self.player.append(AIplayer())
+        ###################################################
         
         self.resize(800, 700)
         #self.setStyleSheet("background: black")
 
+    ###############################################################
     def getplayer(self, numberlist):
-        self.player.initial(self,numberlist, 240, 612, 371.5, 520)
-        self.player.move_()
+        self.player[0].initial(self,numberlist, 240, 612, 371.5, 520)
+        self.player[0].move_()
+    
+    def getAIplayer1(self, numberlist):
+        self.player[1].initial(self,numberlist, 0, 190, 100, 306.5,1)
+        self.player[1].moveVertical()
+
+    def getAIplayer2(self, numberlist):
+        self.player[2].initial(self, numberlist, 240, 0, 371.5, 93,2)
+        self.player[2].moveHorizontal()
+    
+    def getAIplayer3(self, numberlist):
+        self.player[3].initial(self,numberlist, 739, 190, 643, 306.5,3)
+        self.player[3].moveVertical()
+
+    def AIplayer1play(self, number):
+        self.player[1].play(self,number)
+
+    def AIplayer2play(self, number):
+        self.player[2].play(self, number)
+
+    def AIplayer3play(self, number):
+        self.player[3].play(self, number)
+
+    def AIplayer1facecard(self):
+        self.player[1].faceCards(self)
+
+    def AIplayer2facecard(self):
+        self.player[2].faceCards(self)
+
+    def AIplayer3facecard(self):
+        self.player[3].faceCards(self)
+##################################################################################
 
     #配合highlight_quest使用
     quest_state_0 = 0
@@ -146,23 +251,23 @@ class TimeBridgeGUI(QWidget):
 
         #出牌判断
         if e.button() == Qt.LeftButton:
-            condition1 = (e.x()>= self.player.bpx)
-            condition2 = (e.x() <= (self.player.bpx + (len(self.player.cardlist)-1)*self.player.interval) + 57)
-            condition3 = (e.y() >= self.player.bpy)
-            condition4 = (e.y()<= (self.player.bpy + 87))
+            condition1 = (e.x()>= self.player[0].bpx)
+            condition2 = (e.x() <= (self.player[0].bpx + (len(self.player[0].cardlist)-1)*self.player[0].interval) + 57)
+            condition3 = (e.y() >= self.player[0].bpy)
+            condition4 = (e.y()<= (self.player[0].bpy + 87))
 
             if condition1 and condition2 and condition3 and condition4:
-                clicklength = e.x() - self.player.bpx
-                if clicklength <= self.player.interval*len(self.player.cardlist):
-                    number = int( clicklength / self.player.interval )
+                clicklength = e.x() - self.player[0].bpx
+                if clicklength <= self.player[0].interval*len(self.player[0].cardlist):
+                    number = int( clicklength / self.player[0].interval )
                     #print(number)
-                    self.player.delete()
-                    card = self.player.play(number)
+                    self.player[0].delete()
+                    card = self.player[0].play(number)
                     print(card)
-                elif clicklength > self.player.interval*len(self.player.cardlist):
+                elif clicklength > self.player[0].interval*len(self.player[0].cardlist):
                     #print(len(self.player.cardlist)-1)
-                    self.player.delete()
-                    card = self.player.play(len(self.player.cardlist)-1)
+                    self.player[0].delete()
+                    card = self.player[0].play(len(self.player[0].cardlist)-1)
                     print(card)
                 
 
@@ -171,7 +276,7 @@ class TimeBridgeGUI(QWidget):
         qp = QPainter()
         qp.begin(self)
         self.draw_player_area(qp)
-        qp.end()
+        qp.end() 
 
     def draw_player_area(self, qp):
       
@@ -185,8 +290,8 @@ class TimeBridgeGUI(QWidget):
         qp.drawRect(371.5, 93, 57, 87)
         qp.drawRect(371.5, 520, 57, 87)
         qp.drawRect(240, 612, 297, 87)
-        qp.drawRect(0, 190, 87, 297)
-        qp.drawRect(709, 190, 87, 297)
+        qp.drawRect(0, 190, 57, 327)
+        qp.drawRect(739, 190, 57, 327)
         qp.drawRect(100, 306.5, 57, 87)
         qp.drawRect(643, 306.5, 57, 87)
         #叫牌区域
@@ -236,12 +341,20 @@ class TimeBridgeGUI(QWidget):
     def handle_close(self):
         self.close()
         
-if __name__ == "__main__":
+if __name__ == "__main__": 
     App = QApplication(sys.argv)
     ex = welcomePage()
     s = TimeBridgeGUI()
+    #################### test ########################
     s.getplayer([0,1,2,3,4,5,6,7,8,9,10,11,12])
-
+    s.getAIplayer1([0,1,2,3,4,5,6,7,8,9,10,11,12])
+    s.getAIplayer2([0,1,2,3,4,5,6,7,8,9,10,11,12])
+    s.getAIplayer3([0,1,2,3,4,5,6,7,8,9,10,11,12])
+    s.AIplayer1facecard()
+    s.AIplayer1play(1)
+    s.AIplayer2play(2)
+    s.AIplayer3play(3)
+    ##################################################
     ex.btn.clicked.connect(s.handle_click)
     ex.btn.clicked.connect(ex.hide)
     ex.close_signal.connect(ex.close)
